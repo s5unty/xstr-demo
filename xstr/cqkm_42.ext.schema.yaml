@@ -1,0 +1,65 @@
+# Rime schema settings
+# encoding: utf-8
+
+schema:
+  schema_id: cqkm_42.ext
+  name: "快码双拼"
+  version: "22.10"
+  description: |
+    仿照双拼输入法，两键一字，节奏整齐，依靠内置词库，实现连续输入。
+    在这种连续输入模式下，与基于码表的原版输入法相比，有以下主要差别——
+      - 每个字最多只取三码，第三码作为辅码、输入时需要大写
+      - 一简字，必须补一个分号(`;`)或者字母(`z`)补齐到两码
+      - 二字词，例如维护(维)、看到(看)，可在末尾添一个分号(`;`)
+      - 三字(含)以上的词组，需在原版四码的末尾补一个分号(`;`)
+  author:
+    - 二笔音形编码: "陈劲松 (1992)"
+    - 超强系列编码: "付东升 (2005)"
+    - Rime输入法引擎: "弓辰[号佛振] (2011)"
+    - Fcitx输入法框架: "CSSlayer (2010), Yuking (2001-2010)"
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ 中文, 西文 ]
+  - name: full_shape
+    states: [ 半角, 全角 ]
+  - name: simplification
+    reset: 0
+    states: [ 汉字, 漢字 ]
+  - name: ascii_punct
+    states: [ 。，, ．， ]
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - selector
+    - punctuator
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - script_translator
+  filters:
+    - uniquifier
+
+speller:
+  alphabet: "asdfgyuiopqwertzxcvbhjklnmASDFGYUIOPQWERTZXCVBHJKLNM;"
+  initials: "asdfgyuiopqwertzxcvbhjklnm"
+  algebra:
+    - derive/^([a-z]{2})[A-Z]$/$1;/
+    - abbrev/^([a-z]{2})[A-Z]$/$1/
+
+translator:
+  dictionary: cqkm_42.ext
+  prism: cqkm_42.ext
+

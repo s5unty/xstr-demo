@@ -1,0 +1,136 @@
+# Rime schema settings
+# encoding: utf-8
+
+schema:
+  schema_id: cqkm_42
+  name: "快码双拼"
+  version: "22.9"
+  description: |
+    兼具单字(码表)和词句(拼音)的混输方案。
+    小于等于四码时，表现为码表形式，与原版基本一致，便于输入单字。
+    大于等于四码时，表现为拼音形式，类似双拼输入法，方便连续输入。
+  author:
+    - 二笔音形编码: "陈劲松 (1992)"
+    - 超强系列编码: "付东升 (2005)"
+    - Rime输入法引擎: "弓辰[号佛振] (2011)"
+    - Fcitx输入法框架: "CSSlayer (2010), Yuking (2001-2010)"
+  dependencies:
+    - cqkm_42.ext
+    - pinyin_simp
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ 中, 西 ]
+  - name: full_shape
+    states: [ 半, 全 ]
+  - name: ascii_punct
+    states: [ 。, ． ]
+  - name: traditional
+    reset: 0
+    states: [ 简, 繁 ]
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - selector
+    - punctuator
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - affix_segmentor@assist
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - reverse_lookup_translator
+    - table_translator
+    - script_translator@assist
+  filters:
+    - simplifier@traditional
+    - uniquifier
+
+speller:
+  alphabet: "asdfgyuiopqwertzxcvbhjklnmASDFGYUIOPQWERTZXCVBHJKLNM;"
+  initials: "asdfgyuiopqwertzxcvbhjklnm"
+  auto_select: false
+
+translator:
+  initial_quality: 1
+  dictionary: cqkm_42
+  enable_completion: true
+  enable_charset_filter: true
+  encode_commit_history: false
+  enable_user_dict: false
+  enable_sentence: false
+  enable_encoder: false
+
+# 副翻译器
+assist:
+# initial_quality: 8100000
+  tag: assist
+  dictionary: cqkm_42.ext
+  enable_user_dict: true
+
+# 拼音反查
+reverse_lookup:
+  dictionary: pinyin_simp
+  enable_user_dict: false
+  prefix: ":"
+  tips: 〔拼音反查〕
+  preedit_format:
+    - xform/^://
+  comment_format:
+    # 以 i,u,v 开头的编码，在反查结果中排除
+    - xform/(^|[ ])[iuv][a-z]*//
+    - xform/^[ ]+//
+    - xform/([ ])+/ :/
+
+traditional:
+  opencc_config: s2tw.json
+  option_name: traditional
+
+# 标点
+punctuator:
+  import_preset: symbols
+
+key_binder:
+  # import_preset: default
+  bindings:
+    - { when: composing, accept: comma,              send: "2" }
+    - { when: composing, accept: period,             send: "3" }
+    - { when: composing, accept: 9,                  send: "Shift+Left"       }
+    - { when: composing, accept: parenleft,          send: "Left"             }
+    - { when: composing, accept: "Shift+parenleft",  send: "Left"             }
+    - { when: composing, accept: 0,                  send: "Shift+Right"      }
+    - { when: composing, accept: parenright,         send: "Right"            }
+    - { when: composing, accept: "Shift+parenright", send: "Right"            }
+    - { when: composing, accept: bracketleft,        send: "Shift+BackSpace"  }
+    - { when: composing, accept: Tab,                send: "Escape"           }
+    - { when: has_menu,  accept: grave,              send: "Home"             }
+    - { when: composing, accept: -,                  send: "Page_Down"        }
+    - { when: paging,    accept: 0,                  send: "Page_Up"          } # 翻页之后，「0」由左右移动，变为向上翻页
+    - { when: always,    accept: "Control+Alt+j",    toggle: full_shape       }
+    - { when: always,    accept: "Control+Alt+f",    toggle: traditional      }
+    - { when: always,    accept: "Control+period",   toggle: ascii_punct      }
+
+# 杂项
+recognizer:
+  import_preset: default
+  patterns:
+    punct: '^/([0-9]|[a-z]+)$'
+    assist: "^[a-z][a-zA-Z;]{3,}"
+    reverse_lookup: "^:[a-z]*$"
+
+menu:
+  page_size: 4
+  alternative_select_keys: "1234"
+# alternative_select_labels: [ "1", "2", "3", "4"]  # windows
+  alternative_select_labels: ["①","②","③","④"]  # linux
+

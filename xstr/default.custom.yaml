@@ -1,0 +1,12 @@
+customization:
+  rime_version: 1.7.3
+patch:
+  schema_list:
+    - schema: cqkm_42
+  switcher:
+    hotkeys:
+      - "Control+Alt+k"
+  ascii_composer/switch_key:
+    Shift_L: commit_code
+    Shift_R: noop
+
