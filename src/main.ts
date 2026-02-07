@@ -1,11 +1,11 @@
 import './styles.css';
-import ckqmImageUrl from '../cqkm.png';
 import { PRACTICE_TEXTS } from './content/practice';
 import { DevStats } from './devtools/dev-stats';
 import { GameEngine } from './game/game-engine';
 import { type LexiconMap, loadLexicon, loadPunctuationMap } from './ime/lexicon';
 import { QuickCodeIme } from './ime/quickcode-ime';
 import { ThreeScene } from './render/three-scene';
+import { KeyboardGuide } from './ui/input/keyboard-guide';
 import { InputOverlay } from './ui/input/input-overlay';
 
 async function bootstrap(): Promise<void> {
@@ -15,14 +15,11 @@ async function bootstrap(): Promise<void> {
   const canvasWrap = document.createElement('div');
   canvasWrap.className = 'canvas-wrap';
   const overlay = new InputOverlay();
+  const keyboardGuide = new KeyboardGuide();
   const perfBadge = document.createElement('div');
   perfBadge.className = 'perf-badge';
-  const ckqmGuide = document.createElement('img');
-  ckqmGuide.className = 'ckqm-guide';
-  ckqmGuide.src = ckqmImageUrl;
-  ckqmGuide.alt = '快码键位图';
 
-  app.append(canvasWrap, overlay.root, perfBadge, ckqmGuide);
+  app.append(canvasWrap, overlay.root, perfBadge, keyboardGuide.root);
 
   const three = new ThreeScene(canvasWrap);
   const devStats = new DevStats(perfBadge);
@@ -61,6 +58,7 @@ async function bootstrap(): Promise<void> {
   resetRound();
 
   window.addEventListener('keydown', (event) => {
+    keyboardGuide.handleKeyDown(event);
     let gameSnapshot = game.getSnapshot();
 
     if (event.key === 'Enter') {
@@ -107,11 +105,16 @@ async function bootstrap(): Promise<void> {
   });
 
   window.addEventListener('keyup', (event) => {
+    keyboardGuide.handleKeyUp(event);
     const result = ime.handleKeyUp(event);
     if (result.consumed) {
       event.preventDefault();
       overlay.renderIme(ime.getSnapshot());
     }
+  });
+
+  window.addEventListener('blur', () => {
+    keyboardGuide.clear();
   });
 
   function tick(): void {

@@ -6,6 +6,13 @@ const path = require('node:path');
 const ROOT = process.cwd();
 const { loadLexicon, loadPunctuationMap } = require('../.tmp-test/src/ime/lexicon.js');
 const { QuickCodeIme } = require('../.tmp-test/src/ime/quickcode-ime.js');
+const {
+  normalizeGuideKey,
+  KEY_POP_ANIMATION,
+  KEYBOARD_ANNOTATION_IDS,
+  KEYBOARD_ASSET_BACKGROUND,
+  derivePopDurationMs,
+} = require('../.tmp-test/src/ui/input/keyboard-guide.js');
 
 let lexicon;
 let punctuationMap;
@@ -234,4 +241,54 @@ test('IME-SESSION-25 中文模式 raw 为空时可直接输入 0-9', () => {
   }
   assert.equal(out.join(''), '0123456789');
   assert.equal(ime.getSnapshot().raw, '');
+});
+
+test('IME-SESSION-26 键位图按键归一化支持图例键与 Shift 符号', () => {
+  assert.equal(normalizeGuideKey('A'), 'a');
+  assert.equal(normalizeGuideKey(';'), 'semicolon');
+  assert.equal(normalizeGuideKey('<'), 'comma');
+  assert.equal(normalizeGuideKey('>'), 'period');
+  assert.equal(normalizeGuideKey('?'), 'slash');
+  assert.equal(normalizeGuideKey('Backspace'), null);
+  assert.equal(normalizeGuideKey('F1'), null);
+});
+
+test('IME-SESSION-27 键盘冒泡动画参数应为放大并抬升', () => {
+  assert.ok(KEY_POP_ANIMATION.peakScale > 1);
+  assert.ok(KEY_POP_ANIMATION.settleScale > 1);
+  assert.ok(KEY_POP_ANIMATION.liftPx >= 12);
+  assert.ok(KEY_POP_ANIMATION.baseDurationMs >= 500);
+});
+
+test('IME-SESSION-28 键盘冒泡回落时长应随击打速度变化', () => {
+  const fast = derivePopDurationMs(80);
+  const mid = derivePopDurationMs(240);
+  const slow = derivePopDurationMs(500);
+  assert.equal(derivePopDurationMs(null), KEY_POP_ANIMATION.baseDurationMs);
+  assert.equal(fast, KEY_POP_ANIMATION.minDurationMs);
+  assert.equal(slow, KEY_POP_ANIMATION.maxDurationMs);
+  assert.ok(fast < mid);
+  assert.ok(mid < slow);
+});
+
+test('IME-SESSION-29 键盘冒泡应启用平滑回落模式', () => {
+  assert.equal(KEY_POP_ANIMATION.smoothReturn, true);
+});
+
+test('IME-SESSION-30 键位图底部黄字图例应为单张整体图', () => {
+  assert.ok(KEYBOARD_ANNOTATION_IDS.includes('hints-bottom'));
+  assert.equal(KEYBOARD_ANNOTATION_IDS.includes('hint-riyue'), false);
+  assert.equal(KEYBOARD_ANNOTATION_IDS.includes('hint-shui'), false);
+});
+
+test('IME-SESSION-31 键位切图背景应使用透明方案', () => {
+  assert.equal(KEYBOARD_ASSET_BACKGROUND.annotations, 'transparent-yellow-only');
+  assert.equal(KEYBOARD_ASSET_BACKGROUND.keys, 'source-original');
+});
+
+test('IME-SESSION-32 黄字说明图配置应包含底部整图与左右分区', () => {
+  const expected = ['zone-left-top', 'zone-left-mid', 'zone-left-bot', 'zone-right-top', 'zone-right-mid', 'hints-bottom'];
+  for (const id of expected) {
+    assert.ok(KEYBOARD_ANNOTATION_IDS.includes(id));
+  }
 });
