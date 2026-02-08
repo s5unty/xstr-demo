@@ -382,3 +382,9 @@ test('IME-SESSION-45 空闲时键盘摇摆应禁用', () => {
   assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleRockZAmplitude, 0);
   assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleBobYAmplitude, 0);
 });
+
+test('IME-SESSION-46 构建类型声明应覆盖 three 与 OrbitControls', async () => {
+  const dts = await fs.readFile(path.resolve(ROOT, 'src/three.d.ts'), 'utf8');
+  assert.match(dts, /declare module 'three';/);
+  assert.match(dts, /declare module 'three\/examples\/jsm\/controls\/OrbitControls\.js';/);
+});
