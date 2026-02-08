@@ -7,10 +7,13 @@ const ROOT = process.cwd();
 const { loadLexicon, loadPunctuationMap } = require('../.tmp-test/src/ime/lexicon.js');
 const { QuickCodeIme } = require('../.tmp-test/src/ime/quickcode-ime.js');
 const {
+  KEY_LAYOUT,
   normalizeGuideKey,
   KEY_POP_ANIMATION,
   KEYBOARD_ANNOTATION_IDS,
+  KEYBOARD_3D_VISUAL_POLICY,
   KEYBOARD_ASSET_BACKGROUND,
+  KEYBOARD_POINTER_PROFILE,
   derivePopDurationMs,
 } = require('../.tmp-test/src/ui/input/keyboard-guide.js');
 
@@ -291,4 +294,91 @@ test('IME-SESSION-32 黄字说明图配置应包含底部整图与左右分区',
   for (const id of expected) {
     assert.ok(KEYBOARD_ANNOTATION_IDS.includes(id));
   }
+});
+
+test('IME-SESSION-33 3D 键盘布局应包含 30 个键位与符号键', () => {
+  assert.equal(KEY_LAYOUT.length, 30);
+  const ids = new Set(KEY_LAYOUT.map((item) => item.id));
+  for (const id of ['a', 'semicolon', 'comma', 'period', 'slash']) {
+    assert.ok(ids.has(id));
+  }
+});
+
+test('IME-SESSION-34 3D 键盘鼠标交互语义应固定', () => {
+  assert.equal(KEYBOARD_POINTER_PROFILE.leftClick, 'commit-input');
+  assert.equal(KEYBOARD_POINTER_PROFILE.rightButton, 'rotate-view');
+  assert.equal(KEYBOARD_POINTER_PROFILE.rightClickTap, 'backspace');
+  assert.equal(KEYBOARD_POINTER_PROFILE.middleButton, 'pan-view');
+  assert.equal(KEYBOARD_POINTER_PROFILE.middleClickTap, 'shift-key');
+  assert.equal(KEYBOARD_POINTER_PROFILE.wheel, 'zoom-view');
+  assert.equal(KEYBOARD_POINTER_PROFILE.commitPhase, 'pointerup');
+  assert.equal(KEYBOARD_POINTER_PROFILE.keyMotion, 'down-press-up-release');
+});
+
+test('IME-SESSION-35 3D 键盘应禁用底板背景', () => {
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.basePlate, 'none');
+});
+
+test('IME-SESSION-36 3D 键帽贴图应位于外侧正面', () => {
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.keyCapTextureFace, 'front');
+});
+
+test('IME-SESSION-37 3D 键盘应支持垂直旋转范围', () => {
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.minPolarAngle <= 0.01);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.maxPolarAngle >= 3.1);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.maxPolarAngle > KEYBOARD_3D_VISUAL_POLICY.minPolarAngle);
+});
+
+test('IME-SESSION-38 3D 键帽应使用单层渐变结构', () => {
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.keyCapStructure, 'single-tapered');
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyCapDepth >= 0.2);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyCapTopScale < 1);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyCapTopScale >= 0.85);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyCapVerticalSegments >= 6);
+});
+
+test('IME-SESSION-39 3D 键帽颜色与初始视角策略', () => {
+  assert.equal(typeof KEYBOARD_3D_VISUAL_POLICY.keyCapSideColor, 'string');
+  assert.equal(typeof KEYBOARD_3D_VISUAL_POLICY.keyCapTopColor, 'string');
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyboardTiltX <= -0.2);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.cameraInitialY >= 1.8);
+});
+
+test('IME-SESSION-40 3D 键盘初始位置应上移避免与目标区重叠', () => {
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyboardOffsetY >= 0.1);
+});
+
+test('IME-SESSION-41 3D 键盘空闲摇摆策略应关闭', () => {
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleMotionEnabled, false);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.idleResumeDelayMs >= 1000);
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleRockXAmplitude, 0);
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleRockZAmplitude, 0);
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleBobYAmplitude, 0);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.idleRockFrequencyHz > 0);
+});
+
+test('IME-SESSION-42 黄色底部说明图应上移且初始视角更立体', () => {
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyboardOffsetY >= 0.35);
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.hintsBottomLiftPx, 0);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyboardTiltX <= -0.35);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.cameraInitialY >= 2.3);
+});
+
+test('IME-SESSION-43 黄色底部说明图应与目标区保留安全距离', () => {
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyboardOffsetY >= 0.4);
+});
+
+test('IME-SESSION-44 鼠标左键按键物理反馈应为按下缩小松开回弹', () => {
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyPressScale < 1);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyPressDepth > 0);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyReleaseBounceScale > 0);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyReleaseLift > 0);
+  assert.ok(KEYBOARD_3D_VISUAL_POLICY.keyReleaseDurationMs >= 120);
+});
+
+test('IME-SESSION-45 空闲时键盘摇摆应禁用', () => {
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleMotionEnabled, false);
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleRockXAmplitude, 0);
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleRockZAmplitude, 0);
+  assert.equal(KEYBOARD_3D_VISUAL_POLICY.idleBobYAmplitude, 0);
 });

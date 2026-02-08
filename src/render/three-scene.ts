@@ -1,28 +1,145 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { RenderFeedbackEvent } from '../types';
+import { Keyboard3D } from './keyboard3d';
+import {
+  KEYBOARD_3D_VISUAL_POLICY,
+  keyIdToShiftInputKey,
+  normalizeGuideKey,
+} from '../ui/input/keyboard-layout';
 
 export class ThreeScene {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true });
+  private readonly controls: OrbitControls;
+  private readonly keyboard3d = new Keyboard3D();
+  private readonly clock = new THREE.Clock();
   private readonly baseBg = new THREE.Color('#0f172a');
   private readonly correctBg = new THREE.Color('#052e16');
   private readonly wrongBg = new THREE.Color('#450a0a');
   private activeFlash = 0;
+  private onVirtualKey: ((key: string) => void) | null = null;
+  private lastMouseInteractionTs = 0;
+  private rightPointer:
+    | {
+        x: number;
+        y: number;
+        ts: number;
+      }
+    | null = null;
+  private middlePointer:
+    | {
+        x: number;
+        y: number;
+        ts: number;
+        keyId: string | null;
+      }
+    | null = null;
 
   constructor(private readonly mount: HTMLElement) {
-    this.camera.position.set(0, 2.2, 5.5);
+    this.camera.position.set(
+      KEYBOARD_3D_VISUAL_POLICY.cameraInitialX,
+      KEYBOARD_3D_VISUAL_POLICY.cameraInitialY,
+      KEYBOARD_3D_VISUAL_POLICY.cameraInitialZ,
+    );
     this.scene.background = this.baseBg;
+    this.scene.add(this.keyboard3d.root);
 
     const hemi = new THREE.HemisphereLight('#dbeafe', '#0b1220', 1.1);
     this.scene.add(hemi);
 
     const dir = new THREE.DirectionalLight('#ffffff', 0.9);
-    dir.position.set(2, 4, 3);
+    dir.position.set(1.8, 3.2, 4.5);
     this.scene.add(dir);
 
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.mount.appendChild(this.renderer.domElement);
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.enablePan = true;
+    this.controls.enableZoom = true;
+    this.controls.minDistance = 4.8;
+    this.controls.maxDistance = 13;
+    this.controls.minPolarAngle = KEYBOARD_3D_VISUAL_POLICY.minPolarAngle;
+    this.controls.maxPolarAngle = KEYBOARD_3D_VISUAL_POLICY.maxPolarAngle;
+    this.controls.target.set(0, KEYBOARD_3D_VISUAL_POLICY.cameraTargetY, 0);
+    this.controls.mouseButtons = {
+      LEFT: THREE.MOUSE.NONE,
+      MIDDLE: THREE.MOUSE.PAN,
+      RIGHT: THREE.MOUSE.ROTATE,
+    };
+    this.controls.addEventListener('start', () => this.noteMouseInteraction());
+    this.controls.addEventListener('change', () => this.noteMouseInteraction());
+    this.controls.update();
+
+    this.renderer.domElement.addEventListener('pointerdown', (event) => {
+      this.noteMouseInteraction();
+      if (event.button === 2) {
+        this.rightPointer = { x: event.clientX, y: event.clientY, ts: Date.now() };
+      } else if (event.button === 1) {
+        this.middlePointer = {
+          x: event.clientX,
+          y: event.clientY,
+          ts: Date.now(),
+          keyId: this.keyboard3d.getKeyIdAtPointer(event.clientX, event.clientY, this.camera, this.renderer.domElement),
+        };
+      }
+      this.keyboard3d.handlePointerDown(event, this.camera, this.renderer.domElement);
+    });
+    this.renderer.domElement.addEventListener('pointerup', (event) => {
+      this.noteMouseInteraction();
+      if (event.button === 2 && this.rightPointer) {
+        const moved = Math.hypot(event.clientX - this.rightPointer.x, event.clientY - this.rightPointer.y);
+        const heldMs = Date.now() - this.rightPointer.ts;
+        this.rightPointer = null;
+        if (moved <= 6 && heldMs <= 220) {
+          this.onVirtualKey?.('Backspace');
+        }
+      } else if (event.button === 1 && this.middlePointer) {
+        const moved = Math.hypot(event.clientX - this.middlePointer.x, event.clientY - this.middlePointer.y);
+        const heldMs = Date.now() - this.middlePointer.ts;
+        const upKeyId = this.keyboard3d.getKeyIdAtPointer(
+          event.clientX,
+          event.clientY,
+          this.camera,
+          this.renderer.domElement,
+        );
+        const keyId =
+          moved <= 6 && heldMs <= 220 && upKeyId && upKeyId === this.middlePointer.keyId
+            ? upKeyId
+            : null;
+        this.middlePointer = null;
+        if (keyId) {
+          const shiftKey = keyIdToShiftInputKey(keyId);
+          if (shiftKey) {
+            this.onVirtualKey?.(shiftKey);
+          }
+        }
+      }
+      this.keyboard3d.handlePointerUp(event, this.camera, this.renderer.domElement, (key) => {
+        this.onVirtualKey?.(key);
+      });
+    });
+    this.renderer.domElement.addEventListener('pointermove', () => {
+      this.noteMouseInteraction();
+    });
+    this.renderer.domElement.addEventListener('wheel', () => {
+      this.noteMouseInteraction();
+    });
+    this.renderer.domElement.addEventListener('pointercancel', () => {
+      this.rightPointer = null;
+      this.middlePointer = null;
+      this.keyboard3d.handlePointerCancel();
+    });
+    this.renderer.domElement.addEventListener('pointerleave', () => {
+      this.rightPointer = null;
+      this.middlePointer = null;
+      this.keyboard3d.handlePointerCancel();
+    });
+    this.renderer.domElement.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+    });
 
     window.addEventListener('resize', () => this.resize());
     this.resize();
@@ -42,8 +159,31 @@ export class ThreeScene {
     this.scene.background = event.type === 'correct' ? this.correctBg : this.wrongBg;
   }
 
+  setVirtualKeyHandler(handler: (key: string) => void): void {
+    this.onVirtualKey = handler;
+  }
+
+  handleKeyDown(rawKey: string, intervalMs: number | null): void {
+    const keyId = normalizeGuideKey(rawKey);
+    if (!keyId) return;
+    this.keyboard3d.setKeyActive(keyId, true, intervalMs);
+  }
+
+  handleKeyUp(rawKey: string): void {
+    const keyId = normalizeGuideKey(rawKey);
+    if (!keyId) return;
+    this.keyboard3d.setKeyActive(keyId, false);
+  }
+
+  clearKeyHighlights(): void {
+    this.keyboard3d.clearActive();
+  }
+
   private animate(): void {
     requestAnimationFrame(() => this.animate());
+    const deltaSec = Math.min(this.clock.getDelta(), 0.05);
+    const idle = Date.now() - this.lastMouseInteractionTs >= KEYBOARD_3D_VISUAL_POLICY.idleResumeDelayMs;
+    this.keyboard3d.setIdleMotionActive(idle);
 
     if (this.activeFlash > 0) {
       this.activeFlash -= 1 / 60;
@@ -52,6 +192,8 @@ export class ThreeScene {
       }
     }
 
+    this.keyboard3d.update(deltaSec);
+    this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -60,5 +202,9 @@ export class ThreeScene {
     this.camera.aspect = Math.max(clientWidth / Math.max(clientHeight, 1), 0.1);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(clientWidth, Math.max(clientHeight, 1));
+  }
+
+  private noteMouseInteraction(): void {
+    this.lastMouseInteractionTs = Date.now();
   }
 }

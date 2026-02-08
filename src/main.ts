@@ -5,7 +5,6 @@ import { GameEngine } from './game/game-engine';
 import { type LexiconMap, loadLexicon, loadPunctuationMap } from './ime/lexicon';
 import { QuickCodeIme } from './ime/quickcode-ime';
 import { ThreeScene } from './render/three-scene';
-import { KeyboardGuide } from './ui/input/keyboard-guide';
 import { InputOverlay } from './ui/input/input-overlay';
 
 async function bootstrap(): Promise<void> {
@@ -15,11 +14,10 @@ async function bootstrap(): Promise<void> {
   const canvasWrap = document.createElement('div');
   canvasWrap.className = 'canvas-wrap';
   const overlay = new InputOverlay();
-  const keyboardGuide = new KeyboardGuide();
   const perfBadge = document.createElement('div');
   perfBadge.className = 'perf-badge';
 
-  app.append(canvasWrap, overlay.root, perfBadge, keyboardGuide.root);
+  app.append(canvasWrap, overlay.root, perfBadge);
 
   const three = new ThreeScene(canvasWrap);
   const devStats = new DevStats(perfBadge);
@@ -41,6 +39,7 @@ async function bootstrap(): Promise<void> {
   });
 
   let round = 0;
+  let lastKeyDownTs: number | null = null;
   const renderAll = (): void => {
     overlay.renderIme(ime.getSnapshot());
     overlay.renderGame(game.getSnapshot());
@@ -57,17 +56,26 @@ async function bootstrap(): Promise<void> {
 
   resetRound();
 
-  window.addEventListener('keydown', (event) => {
-    keyboardGuide.handleKeyDown(event);
+  function processInputKey(rawKey: string, origin: 'hardware' | 'pointer', event?: KeyboardEvent): void {
+    const now =
+      event && Number.isFinite(event.timeStamp) && event.timeStamp > 0 ? event.timeStamp : Date.now();
+    const interval = lastKeyDownTs === null ? null : now - lastKeyDownTs;
+    lastKeyDownTs = now;
+    if (origin === 'hardware') {
+      three.handleKeyDown(rawKey, interval);
+    }
+
     let gameSnapshot = game.getSnapshot();
 
-    if (event.key === 'Enter') {
+    if (rawKey === 'Enter') {
       const state = gameSnapshot.state;
       if (state === 'menu' || state === 'result') {
         game.start();
         ime.clear();
         renderAll();
-        event.preventDefault();
+        if (event) {
+          event.preventDefault();
+        }
         return;
       }
     }
@@ -76,9 +84,9 @@ async function bootstrap(): Promise<void> {
       return;
     }
 
-    const imeResult = ime.handleKey(event);
+    const imeResult = ime.handleKey({ key: rawKey } as KeyboardEvent);
 
-    if (!imeResult.consumed && event.key === 'Backspace') {
+    if (!imeResult.consumed && rawKey === 'Backspace') {
       game.backspaceConfirmed();
       gameSnapshot = game.getSnapshot();
       three.applyProgress(gameSnapshot.confirmedText.length);
@@ -97,15 +105,25 @@ async function bootstrap(): Promise<void> {
     }
 
     if (imeResult.consumed) {
-      event.preventDefault();
+      if (event) {
+        event.preventDefault();
+      }
     }
 
     overlay.renderIme(ime.getSnapshot());
     overlay.renderGame(gameSnapshot);
+  }
+
+  three.setVirtualKeyHandler((key) => {
+    processInputKey(key, 'pointer');
+  });
+
+  window.addEventListener('keydown', (event) => {
+    processInputKey(event.key, 'hardware', event);
   });
 
   window.addEventListener('keyup', (event) => {
-    keyboardGuide.handleKeyUp(event);
+    three.handleKeyUp(event.key);
     const result = ime.handleKeyUp(event);
     if (result.consumed) {
       event.preventDefault();
@@ -114,7 +132,8 @@ async function bootstrap(): Promise<void> {
   });
 
   window.addEventListener('blur', () => {
-    keyboardGuide.clear();
+    lastKeyDownTs = null;
+    three.clearKeyHighlights();
   });
 
   function tick(): void {
