@@ -5,6 +5,7 @@ import type { RenderFeedbackEvent } from '../types';
 import { Keyboard3D } from './keyboard3d';
 import {
   KEYBOARD_3D_VISUAL_POLICY,
+  SUN_LIGHT_POLICY,
   keyIdToShiftInputKey,
   normalizeGuideKey,
 } from '../ui/input/keyboard-layout';
@@ -16,12 +17,19 @@ export class ThreeScene {
   private readonly controls: OrbitControls;
   private readonly keyboard3d = new Keyboard3D();
   private readonly clock = new THREE.Clock();
+  private readonly sunLight = new THREE.DirectionalLight(SUN_LIGHT_POLICY.color, SUN_LIGHT_POLICY.intensity);
+  private readonly sunTarget = new THREE.Object3D();
+  private readonly sunMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 18, 18),
+    new THREE.MeshBasicMaterial({ color: SUN_LIGHT_POLICY.color }),
+  );
   private readonly baseBg = new THREE.Color('#0f172a');
   private readonly correctBg = new THREE.Color('#052e16');
   private readonly wrongBg = new THREE.Color('#450a0a');
   private activeFlash = 0;
   private onVirtualKey: ((key: string) => void) | null = null;
   private lastMouseInteractionTs = 0;
+  private sunTimeSec = 0;
   private rightPointer:
     | {
         x: number;
@@ -46,15 +54,36 @@ export class ThreeScene {
     );
     this.scene.background = this.baseBg;
     this.scene.add(this.keyboard3d.root);
+    this.scene.add(this.sunTarget);
 
-    const hemi = new THREE.HemisphereLight('#dbeafe', '#0b1220', 1.1);
+    const hemi = new THREE.HemisphereLight('#eef6ff', '#0b1220', 0.78);
     this.scene.add(hemi);
 
-    const dir = new THREE.DirectionalLight('#ffffff', 0.9);
-    dir.position.set(1.8, 3.2, 4.5);
-    this.scene.add(dir);
+    const ambient = new THREE.AmbientLight('#f8fbff', 0.3);
+    this.scene.add(ambient);
+    const fill = new THREE.DirectionalLight('#c7ddff', 0.28);
+    fill.position.set(-3, 2.2, -2.5);
+    this.scene.add(fill);
+
+    this.sunLight.castShadow = true;
+    this.sunLight.shadow.mapSize.set(SUN_LIGHT_POLICY.shadowMapSize, SUN_LIGHT_POLICY.shadowMapSize);
+    this.sunLight.shadow.camera.near = 0.5;
+    this.sunLight.shadow.camera.far = 35;
+    this.sunLight.shadow.camera.left = -9;
+    this.sunLight.shadow.camera.right = 9;
+    this.sunLight.shadow.camera.top = 8;
+    this.sunLight.shadow.camera.bottom = -8;
+    this.sunLight.shadow.bias = -0.00008;
+    this.sunLight.target = this.sunTarget;
+    this.scene.add(this.sunLight);
+    this.sunMesh.visible = SUN_LIGHT_POLICY.enabled;
+    this.scene.add(this.sunMesh);
+    this.sunTarget.position.set(0, KEYBOARD_3D_VISUAL_POLICY.cameraTargetY, 0);
+    this.updateSunLight(0);
 
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.mount.appendChild(this.renderer.domElement);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -183,6 +212,8 @@ export class ThreeScene {
   private animate(): void {
     requestAnimationFrame(() => this.animate());
     const deltaSec = Math.min(this.clock.getDelta(), 0.05);
+    this.sunTimeSec += deltaSec;
+    this.updateSunLight(this.sunTimeSec);
     const idle = Date.now() - this.lastMouseInteractionTs >= KEYBOARD_3D_VISUAL_POLICY.idleResumeDelayMs;
     this.keyboard3d.setIdleMotionActive(idle);
 
@@ -207,5 +238,17 @@ export class ThreeScene {
 
   private noteMouseInteraction(): void {
     this.lastMouseInteractionTs = Date.now();
+  }
+
+  private updateSunLight(timeSec: number): void {
+    if (!SUN_LIGHT_POLICY.enabled) return;
+    const cycle = Math.max(1, SUN_LIGHT_POLICY.cycleSeconds);
+    const t = (timeSec % cycle) / cycle;
+    const x = (0.5 - t) * 2 * SUN_LIGHT_POLICY.xAmplitude;
+    const arch = Math.sin(Math.PI * t);
+    const y = SUN_LIGHT_POLICY.baseY + arch * SUN_LIGHT_POLICY.arcHeight;
+    const z = SUN_LIGHT_POLICY.baseZ + Math.sin(Math.PI * (1 - t)) * SUN_LIGHT_POLICY.zAmplitude;
+    this.sunLight.position.set(x, y, z);
+    this.sunMesh.position.set(x, y, z);
   }
 }

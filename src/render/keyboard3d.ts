@@ -212,6 +212,8 @@ export class Keyboard3D {
         this.createTaperedKeyCapGeometry(key.width * GUIDE_SCALE, key.height * GUIDE_SCALE, keyDepth),
         faceMaterials,
       );
+      cap.castShadow = true;
+      cap.receiveShadow = true;
       cap.userData.keyId = key.id;
       keyGroup.add(cap);
       this.root.add(keyGroup);

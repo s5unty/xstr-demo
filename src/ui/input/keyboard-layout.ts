@@ -119,6 +119,19 @@ export const KEYBOARD_3D_VISUAL_POLICY = {
   maxPolarAngle: 3.1405,
 } as const;
 
+export const SUN_LIGHT_POLICY = {
+  enabled: true,
+  cycleSeconds: 24,
+  xAmplitude: 8.8,
+  baseY: 5.2,
+  arcHeight: 1.9,
+  baseZ: 4.1,
+  zAmplitude: 0.75,
+  intensity: 1.45,
+  color: '#fff3c0',
+  shadowMapSize: 2048,
+} as const;
+
 const SHIFT_SYMBOL_MAP: Record<string, string> = {
   ':': 'semicolon',
   '<': 'comma',

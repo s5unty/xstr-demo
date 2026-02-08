@@ -6,6 +6,7 @@ export {
   KEYBOARD_3D_VISUAL_POLICY,
   KEYBOARD_ASSET_BACKGROUND,
   KEYBOARD_POINTER_PROFILE,
+  SUN_LIGHT_POLICY,
   derivePopDurationMs,
   keyIdToInputKey,
   normalizeGuideKey,

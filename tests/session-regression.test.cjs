@@ -14,6 +14,7 @@ const {
   KEYBOARD_3D_VISUAL_POLICY,
   KEYBOARD_ASSET_BACKGROUND,
   KEYBOARD_POINTER_PROFILE,
+  SUN_LIGHT_POLICY,
   derivePopDurationMs,
 } = require('../.tmp-test/src/ui/input/keyboard-guide.js');
 
@@ -387,4 +388,14 @@ test('IME-SESSION-46 构建类型声明应覆盖 three 与 OrbitControls', async
   const dts = await fs.readFile(path.resolve(ROOT, 'src/three.d.ts'), 'utf8');
   assert.match(dts, /declare module 'three';/);
   assert.match(dts, /declare module 'three\/examples\/jsm\/controls\/OrbitControls\.js';/);
+});
+
+test('IME-SESSION-47 太阳光应启用并具备拱形轨迹亮度参数', () => {
+  assert.equal(SUN_LIGHT_POLICY.enabled, true);
+  assert.ok(SUN_LIGHT_POLICY.cycleSeconds >= 12);
+  assert.ok(SUN_LIGHT_POLICY.xAmplitude > 0);
+  assert.ok(SUN_LIGHT_POLICY.baseY > 3);
+  assert.ok(SUN_LIGHT_POLICY.arcHeight > 0);
+  assert.ok(SUN_LIGHT_POLICY.intensity >= 1.2);
+  assert.ok(SUN_LIGHT_POLICY.shadowMapSize >= 1024);
 });
