@@ -9,6 +9,7 @@ import {
   keyIdToShiftInputKey,
   normalizeGuideKey,
 } from '../ui/input/keyboard-layout';
+import { computeSunLightPositionFromPointer } from './sun-light';
 
 export class ThreeScene {
   private readonly scene = new THREE.Scene();
@@ -29,7 +30,8 @@ export class ThreeScene {
   private activeFlash = 0;
   private onVirtualKey: ((key: string) => void) | null = null;
   private lastMouseInteractionTs = 0;
-  private sunTimeSec = 0;
+  private sunPointerX = 0.5;
+  private sunPointerY = 0.5;
   private rightPointer:
     | {
         x: number;
@@ -79,7 +81,7 @@ export class ThreeScene {
     this.sunMesh.visible = SUN_LIGHT_POLICY.enabled;
     this.scene.add(this.sunMesh);
     this.sunTarget.position.set(0, KEYBOARD_3D_VISUAL_POLICY.cameraTargetY, 0);
-    this.updateSunLight(0);
+    this.updateSunLightFromPointer(this.sunPointerX, this.sunPointerY);
 
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
@@ -105,6 +107,7 @@ export class ThreeScene {
 
     this.renderer.domElement.addEventListener('pointerdown', (event) => {
       this.noteMouseInteraction();
+      this.syncSunFromPointer(event.clientX, event.clientY);
       if (event.button === 2) {
         this.rightPointer = { x: event.clientX, y: event.clientY, ts: Date.now() };
       } else if (event.button === 1) {
@@ -119,6 +122,7 @@ export class ThreeScene {
     });
     this.renderer.domElement.addEventListener('pointerup', (event) => {
       this.noteMouseInteraction();
+      this.syncSunFromPointer(event.clientX, event.clientY);
       if (event.button === 2 && this.rightPointer) {
         const moved = Math.hypot(event.clientX - this.rightPointer.x, event.clientY - this.rightPointer.y);
         const heldMs = Date.now() - this.rightPointer.ts;
@@ -151,8 +155,9 @@ export class ThreeScene {
         this.onVirtualKey?.(key);
       });
     });
-    this.renderer.domElement.addEventListener('pointermove', () => {
+    this.renderer.domElement.addEventListener('pointermove', (event) => {
       this.noteMouseInteraction();
+      this.syncSunFromPointer(event.clientX, event.clientY);
     });
     this.renderer.domElement.addEventListener('wheel', () => {
       this.noteMouseInteraction();
@@ -212,8 +217,6 @@ export class ThreeScene {
   private animate(): void {
     requestAnimationFrame(() => this.animate());
     const deltaSec = Math.min(this.clock.getDelta(), 0.05);
-    this.sunTimeSec += deltaSec;
-    this.updateSunLight(this.sunTimeSec);
     const idle = Date.now() - this.lastMouseInteractionTs >= KEYBOARD_3D_VISUAL_POLICY.idleResumeDelayMs;
     this.keyboard3d.setIdleMotionActive(idle);
 
@@ -234,21 +237,28 @@ export class ThreeScene {
     this.camera.aspect = Math.max(clientWidth / Math.max(clientHeight, 1), 0.1);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(clientWidth, Math.max(clientHeight, 1));
+    this.updateSunLightFromPointer(this.sunPointerX, this.sunPointerY);
   }
 
   private noteMouseInteraction(): void {
     this.lastMouseInteractionTs = Date.now();
   }
 
-  private updateSunLight(timeSec: number): void {
+  private syncSunFromPointer(clientX: number, clientY: number): void {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const width = Math.max(rect.width, 1);
+    const height = Math.max(rect.height, 1);
+    const x = (clientX - rect.left) / width;
+    const y = (clientY - rect.top) / height;
+    this.sunPointerX = Math.min(1, Math.max(0, x));
+    this.sunPointerY = Math.min(1, Math.max(0, y));
+    this.updateSunLightFromPointer(this.sunPointerX, this.sunPointerY);
+  }
+
+  private updateSunLightFromPointer(pointerX: number, pointerY: number): void {
     if (!SUN_LIGHT_POLICY.enabled) return;
-    const cycle = Math.max(1, SUN_LIGHT_POLICY.cycleSeconds);
-    const t = (timeSec % cycle) / cycle;
-    const x = (0.5 - t) * 2 * SUN_LIGHT_POLICY.xAmplitude;
-    const arch = Math.sin(Math.PI * t);
-    const y = SUN_LIGHT_POLICY.baseY + arch * SUN_LIGHT_POLICY.arcHeight;
-    const z = SUN_LIGHT_POLICY.baseZ + Math.sin(Math.PI * (1 - t)) * SUN_LIGHT_POLICY.zAmplitude;
-    this.sunLight.position.set(x, y, z);
-    this.sunMesh.position.set(x, y, z);
+    const pos = computeSunLightPositionFromPointer(pointerX, pointerY, SUN_LIGHT_POLICY);
+    this.sunLight.position.set(pos.x, pos.y, pos.z);
+    this.sunMesh.position.set(pos.x, pos.y, pos.z);
   }
 }

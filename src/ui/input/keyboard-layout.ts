@@ -121,12 +121,13 @@ export const KEYBOARD_3D_VISUAL_POLICY = {
 
 export const SUN_LIGHT_POLICY = {
   enabled: true,
-  cycleSeconds: 24,
+  motionBinding: 'pointer',
   xAmplitude: 8.8,
   baseY: 5.2,
   arcHeight: 1.9,
   baseZ: 4.1,
   zAmplitude: 0.75,
+  pointerVerticalDepthScale: 4.5,
   intensity: 1.45,
   color: '#fff3c0',
   shadowMapSize: 2048,

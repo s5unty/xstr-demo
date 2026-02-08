@@ -17,6 +17,7 @@ const {
   SUN_LIGHT_POLICY,
   derivePopDurationMs,
 } = require('../.tmp-test/src/ui/input/keyboard-guide.js');
+const { computeSunLightPositionFromPointer } = require('../.tmp-test/src/render/sun-light.js');
 
 let lexicon;
 let punctuationMap;
@@ -390,12 +391,35 @@ test('IME-SESSION-46 构建类型声明应覆盖 three 与 OrbitControls', async
   assert.match(dts, /declare module 'three\/examples\/jsm\/controls\/OrbitControls\.js';/);
 });
 
-test('IME-SESSION-47 太阳光应启用并具备拱形轨迹亮度参数', () => {
+test('IME-SESSION-47 太阳光应与鼠标位置绑定并保留亮度参数', () => {
   assert.equal(SUN_LIGHT_POLICY.enabled, true);
-  assert.ok(SUN_LIGHT_POLICY.cycleSeconds >= 12);
+  assert.equal(SUN_LIGHT_POLICY.motionBinding, 'pointer');
   assert.ok(SUN_LIGHT_POLICY.xAmplitude > 0);
   assert.ok(SUN_LIGHT_POLICY.baseY > 3);
   assert.ok(SUN_LIGHT_POLICY.arcHeight > 0);
   assert.ok(SUN_LIGHT_POLICY.intensity >= 1.2);
   assert.ok(SUN_LIGHT_POLICY.shadowMapSize >= 1024);
+});
+
+test('IME-SESSION-48 太阳光策略不再包含自动巡航周期参数', () => {
+  assert.equal('cycleSeconds' in SUN_LIGHT_POLICY, false);
+});
+
+test('IME-SESSION-49 太阳光垂直移动应产生可见角度变化', () => {
+  const top = computeSunLightPositionFromPointer(0.5, 0, SUN_LIGHT_POLICY);
+  const bottom = computeSunLightPositionFromPointer(0.5, 1, SUN_LIGHT_POLICY);
+  assert.ok(top.y > bottom.y);
+  assert.ok(Math.abs(top.z - bottom.z) >= SUN_LIGHT_POLICY.zAmplitude * 4);
+
+  const target = { x: 0, y: KEYBOARD_3D_VISUAL_POLICY.cameraTargetY, z: 0 };
+  const normalize = (dx, dy, dz) => {
+    const len = Math.hypot(dx, dy, dz);
+    return { x: dx / len, y: dy / len, z: dz / len };
+  };
+  const toDir = (pos) => normalize(target.x - pos.x, target.y - pos.y, target.z - pos.z);
+  const a = toDir(top);
+  const b = toDir(bottom);
+  const dot = Math.max(-1, Math.min(1, a.x * b.x + a.y * b.y + a.z * b.z));
+  const angleDeg = (Math.acos(dot) * 180) / Math.PI;
+  assert.ok(angleDeg >= 15);
 });

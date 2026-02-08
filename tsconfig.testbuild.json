@@ -12,5 +12,10 @@
     "lib": ["ES2022", "DOM"],
     "skipLibCheck": true
   },
-  "include": ["src/ime/**/*.ts", "src/types/index.ts", "src/ui/input/keyboard-guide.ts"]
+  "include": [
+    "src/ime/**/*.ts",
+    "src/types/index.ts",
+    "src/ui/input/keyboard-guide.ts",
+    "src/render/sun-light.ts"
+  ]
 }
