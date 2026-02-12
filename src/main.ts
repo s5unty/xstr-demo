@@ -2,6 +2,7 @@ import './styles.css';
 import { PRACTICE_TEXTS } from './content/practice';
 import { DevStats } from './devtools/dev-stats';
 import { GameEngine } from './game/game-engine';
+import { LazyLexiconLoader } from './ime/lexicon-loader';
 import { type LexiconMap, loadLexicon, loadPunctuationMap } from './ime/lexicon';
 import { QuickCodeIme } from './ime/quickcode-ime';
 import { ThreeScene } from './render/three-scene';
@@ -21,7 +22,15 @@ async function bootstrap(): Promise<void> {
 
   const three = new ThreeScene(canvasWrap);
   const devStats = new DevStats(perfBadge);
-  const [lexicon, punctuationMap] = await Promise.all([loadLexicon(), loadPunctuationMap()]);
+  const punctuationMap = await loadPunctuationMap();
+  let lexiconLoader: LazyLexiconLoader | null = new LazyLexiconLoader();
+  let lexicon: LexiconMap;
+  try {
+    lexicon = await lexiconLoader.loadStarter();
+  } catch {
+    lexiconLoader = null;
+    lexicon = await loadLexicon();
+  }
   const ime = new QuickCodeIme(lexicon, 4, punctuationMap);
   const game = new GameEngine();
   overlay.setCharCodeMap(buildCharCodeVariants(lexicon));
@@ -85,6 +94,21 @@ async function bootstrap(): Promise<void> {
     }
 
     const imeResult = ime.handleKey({ key: rawKey } as KeyboardEvent);
+    const currentRaw = ime.getSnapshot().raw;
+    if (lexiconLoader && currentRaw.length > 0) {
+      void lexiconLoader
+        .ensureForRaw(currentRaw)
+        .then((partial) => {
+          if (!partial) {
+            return;
+          }
+          if (ime.mergeLexicon(partial)) {
+            overlay.setCharCodeMap(buildCharCodeVariants(ime.getLexicon()));
+            renderAll();
+          }
+        })
+        .catch(() => undefined);
+    }
 
     if (!imeResult.consumed && rawKey === 'Backspace') {
       game.backspaceConfirmed();

@@ -1,5 +1,6 @@
 import '../styles.css';
-import { loadLexicon, loadPunctuationMap } from '../ime/lexicon';
+import { LazyLexiconLoader } from '../ime/lexicon-loader';
+import { type LexiconMap, loadLexicon, loadPunctuationMap } from '../ime/lexicon';
 import { QuickCodeIme } from '../ime/quickcode-ime';
 
 async function mount(): Promise<void> {
@@ -12,11 +13,20 @@ async function mount(): Promise<void> {
   const candEl = document.createElement('div');
   const debugEl = document.createElement('div');
   const commitEl = document.createElement('div');
+  const loadEl = document.createElement('div');
 
-  panel.append(rawEl, candEl, debugEl, commitEl);
+  panel.append(rawEl, candEl, debugEl, commitEl, loadEl);
   root.append(panel);
 
-  const [lexicon, punctuationMap] = await Promise.all([loadLexicon(), loadPunctuationMap()]);
+  const punctuationMap = await loadPunctuationMap();
+  let loader: LazyLexiconLoader | null = new LazyLexiconLoader();
+  let lexicon: LexiconMap;
+  try {
+    lexicon = await loader.loadStarter();
+  } catch {
+    loader = null;
+    lexicon = await loadLexicon();
+  }
   const ime = new QuickCodeIme(lexicon, 4, punctuationMap);
 
   const render = (): void => {
@@ -36,6 +46,7 @@ async function mount(): Promise<void> {
     } else {
       debugEl.textContent = '调试: (无)';
     }
+    loadEl.textContent = loader ? '词库: 分片懒加载已启用' : '词库: 回退为全量 YAML 解析';
   };
 
   render();
@@ -47,6 +58,17 @@ async function mount(): Promise<void> {
     }
     if (ret.committedText) {
       commitEl.textContent = `上屏: ${ret.committedText}`;
+    }
+    const raw = ime.getSnapshot().raw;
+    if (loader && raw) {
+      void loader.ensureForRaw(raw).then((partial) => {
+        if (!partial) {
+          return;
+        }
+        if (ime.mergeLexicon(partial)) {
+          render();
+        }
+      });
     }
     render();
   });

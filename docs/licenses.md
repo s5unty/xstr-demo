@@ -7,6 +7,7 @@
 
 ## 词库数据
 - 当前运行时直接读取 `xstr/cqkm_42.dict.yaml` 与 `xstr/cqkm_42.phrase.dict.yaml`。
+- 构建产物 `public/lexicon/*.json(.gz)` 仅为打包与传输优化，不改动 `xstr` 原始词库内容。
 - 上述 `xstr` 文件头标注“仅限私人使用、不得发布、不得商用（未经授权）”。
 
 ## 后续替换建议

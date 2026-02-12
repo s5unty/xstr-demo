@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const ROOT = process.cwd();
 const { loadLexicon, loadPunctuationMap } = require('../.tmp-test/src/ime/lexicon.js');
+const { LazyLexiconLoader } = require('../.tmp-test/src/ime/lexicon-loader.js');
 const { QuickCodeIme } = require('../.tmp-test/src/ime/quickcode-ime.js');
 const {
   KEY_LAYOUT,
@@ -28,10 +29,12 @@ before(async () => {
   global.fetch = async (input) => {
     const url = typeof input === 'string' ? input : input.url;
     const rel = url.startsWith('/') ? url.slice(1) : url;
-    const filePath = path.resolve(ROOT, rel);
+    const filePath = rel.startsWith('lexicon/')
+      ? path.resolve(ROOT, 'public', rel)
+      : path.resolve(ROOT, rel);
     try {
-      const text = await fs.readFile(filePath, 'utf8');
-      return new Response(text, { status: 200 });
+      const bin = await fs.readFile(filePath);
+      return new Response(bin, { status: 200 });
     } catch {
       return new Response('', { status: 404 });
     }
@@ -422,4 +425,31 @@ test('IME-SESSION-49 太阳光垂直移动应产生可见角度变化', () => {
   const dot = Math.max(-1, Math.min(1, a.x * b.x + a.y * b.y + a.z * b.z));
   const angleDeg = (Math.acos(dot) * 180) / Math.PI;
   assert.ok(angleDeg >= 15);
+});
+
+test('IME-SESSION-50 压缩词库应可加载启动包并支持空码表分片判定', async () => {
+  const loader = new LazyLexiconLoader({ baseUrl: '/lexicon' });
+  const starter = await loader.loadStarter();
+  assert.ok(starter.size > 0);
+  const manifest = loader.getManifest();
+  assert.ok(manifest);
+  assert.ok(manifest.shards.length >= 26);
+  const noLoad = await loader.ensureForRaw('');
+  assert.equal(noLoad, null);
+});
+
+test('IME-SESSION-51 压缩词库应支持按首码懒加载并与 IME 合并', async () => {
+  const loader = new LazyLexiconLoader({ baseUrl: '/lexicon' });
+  const starter = await loader.loadStarter();
+  const ime = new QuickCodeIme(new Map(starter), 4, punctuationMap);
+
+  const before = ime.getLexicon().size;
+  const partial = await loader.ensureForRaw('x');
+  assert.ok(partial);
+  const changed = ime.mergeLexicon(partial);
+  assert.equal(changed, true);
+  assert.ok(ime.getLexicon().size > before);
+
+  const again = await loader.ensureForRaw('x');
+  assert.equal(again, null);
 });

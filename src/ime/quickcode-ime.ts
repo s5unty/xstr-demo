@@ -41,9 +41,12 @@ export class QuickCodeIme {
   private pendingShiftToggle = false;
   private readonly lexicon: LexiconMap;
   private readonly pageSize: number;
-  private readonly trieRoot: TrieNode;
-  private readonly prefixSingleCandidates: Map<string, CandidateItem[]>;
-  private readonly leadSingleCandidates: Map<string, CandidateItem[]>;
+  private trieRoot: TrieNode = { children: new Map(), entries: [] };
+  private prefixSingleCandidates: Map<string, CandidateItem[]> = new Map();
+  private leadSingleCandidates: Map<string, CandidateItem[]> = new Map();
+  private lexiconRevision = 0;
+  private trieBuiltRevision = -1;
+  private prefixBuiltRevision = -1;
   private readonly punctuationMap: PunctuationMap;
   private readonly punctPairState: Map<string, number> = new Map();
   private lastDebug = {
@@ -58,10 +61,9 @@ export class QuickCodeIme {
   constructor(lexicon: LexiconMap, pageSize = 4, punctuationMap: PunctuationMap = new Map()) {
     this.lexicon = lexicon;
     this.pageSize = pageSize;
-    this.trieRoot = buildTrie(lexicon);
-    this.prefixSingleCandidates = buildPrefixSingleCandidates(lexicon);
-    this.leadSingleCandidates = buildLeadSingleCandidates(lexicon);
     this.punctuationMap = punctuationMap;
+    this.lexiconRevision = 1;
+    this.ensureIndexes();
   }
 
   handleKey(event: KeyboardEvent): ImeCommitResult {
@@ -215,7 +217,28 @@ export class QuickCodeIme {
     this.page = 0;
   }
 
+  mergeLexicon(partial: LexiconMap): boolean {
+    let changed = false;
+    for (const [code, entries] of partial.entries()) {
+      const prev = this.lexicon.get(code);
+      if (isSameEntries(prev, entries)) {
+        continue;
+      }
+      this.lexicon.set(code, entries);
+      changed = true;
+    }
+    if (changed) {
+      this.lexiconRevision += 1;
+    }
+    return changed;
+  }
+
+  getLexicon(): LexiconMap {
+    return this.lexicon;
+  }
+
   private getAllCandidates(): CandidateItem[] {
+    this.ensureIndexes();
     if (!this.raw) {
       this.lastDebug = {
         hasUppercase: false,
@@ -441,6 +464,18 @@ export class QuickCodeIme {
   private isSingleLeadInput(raw: string): boolean {
     return raw.length === 1 && raw[0] >= 'a' && raw[0] <= 'z';
   }
+
+  private ensureIndexes(): void {
+    if (this.trieBuiltRevision !== this.lexiconRevision) {
+      this.trieRoot = buildTrie(this.lexicon);
+      this.trieBuiltRevision = this.lexiconRevision;
+    }
+    if (this.prefixBuiltRevision !== this.lexiconRevision) {
+      this.prefixSingleCandidates = buildPrefixSingleCandidates(this.lexicon);
+      this.leadSingleCandidates = buildLeadSingleCandidates(this.lexicon);
+      this.prefixBuiltRevision = this.lexiconRevision;
+    }
+  }
 }
 
 function mergeAndSortCandidates(primary: CandidateItem[], secondary: CandidateItem[]): CandidateItem[] {
@@ -480,6 +515,26 @@ function dedupByText(items: CandidateItem[]): CandidateItem[] {
     }
   }
   return Array.from(byText.values());
+}
+
+function isSameEntries(prev: CandidateItem[] | undefined, next: CandidateItem[]): boolean {
+  if (!prev || prev.length !== next.length) {
+    return false;
+  }
+  for (let i = 0; i < prev.length; i += 1) {
+    const a = prev[i];
+    const b = next[i];
+    if (
+      a.text !== b.text ||
+      a.code !== b.code ||
+      a.weight !== b.weight ||
+      a.pendingCode !== b.pendingCode ||
+      a.syntheticShort !== b.syntheticShort
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function insertPath(bucket: ComposePath[], path: ComposePath): void {

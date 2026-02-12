@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:lexicon": "node scripts/build-lexicon.mjs",
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && rm -rf dist/xstr && cp -r xstr dist/xstr",
+    "build": "pnpm run build:lexicon && tsc --noEmit && vite build",
     "preview": "vite preview",
     "test:build": "rm -rf .tmp-test && tsc -p tsconfig.testbuild.json && printf '{\"type\":\"commonjs\"}' > .tmp-test/package.json",
     "test:run": "node --test tests/session-regression.test.cjs",
-    "test": "pnpm run test:build && pnpm run test:run"
+    "test": "pnpm run build:lexicon && pnpm run test:build && pnpm run test:run"
   },
   "dependencies": {
     "three": "^0.181.0"

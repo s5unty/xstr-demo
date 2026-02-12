@@ -10,7 +10,10 @@
 - 精确匹配：`raw -> lexicon[raw]`
 - 候选排序：按 `weight` 降序
 - 分页：`slice(page * pageSize, ...)`
-- 词典来源：运行时直接解析 `xstr/cqkm_42.dict.yaml` 与 `xstr/cqkm_42.phrase.dict.yaml`
+- 词典来源：
+  - 优先使用 `LazyLexiconLoader` 加载 `public/lexicon/manifest.json` 与 `starter.json(.gz)`
+  - 输入后按首码懒加载分片 `shards/{a-z}.json(.gz)` 并合并到 IME
+  - 构建产物缺失时回退为运行时直读 YAML（兼容开发态）
 - 连续码流组合：当 `raw` 无直接词条时，基于码表 Trie 做分段组合（Beam Search），可将连续短码合成词语串
 
 ## 上屏规则
