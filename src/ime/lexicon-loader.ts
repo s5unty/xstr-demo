@@ -31,6 +31,14 @@ export interface LazyLexiconLoaderOptions {
   baseUrl?: string;
 }
 
+export function resolveLexiconBaseUrl(baseUrl: string): string {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (normalized.endsWith('/lexicon/')) {
+    return normalized.slice(0, -1);
+  }
+  return normalized === '/' ? '/lexicon' : `${normalized}lexicon`;
+}
+
 export class LazyLexiconLoader {
   private readonly baseUrl: string;
   private readonly lexicon: LexiconMap = new Map();
@@ -40,7 +48,7 @@ export class LazyLexiconLoader {
   private readonly pendingShards = new Map<string, Promise<LexiconMap | null>>();
 
   constructor(options: LazyLexiconLoaderOptions = {}) {
-    this.baseUrl = options.baseUrl ?? '/lexicon';
+    this.baseUrl = options.baseUrl ? resolveLexiconBaseUrl(options.baseUrl) : '/lexicon';
   }
 
   async loadStarter(): Promise<LexiconMap> {
@@ -148,6 +156,15 @@ export class LazyLexiconLoader {
       this.lexicon.set(code, entries);
     }
   }
+}
+
+function normalizeBaseUrl(baseUrl: string): string {
+  const input = baseUrl.trim();
+  if (!input) {
+    return '/';
+  }
+  const withLead = input.startsWith('/') ? input : `/${input}`;
+  return withLead.endsWith('/') ? withLead : `${withLead}/`;
 }
 
 function decodeLexiconPack(pack: EncodedLexiconPack): LexiconMap {

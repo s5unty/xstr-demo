@@ -23,7 +23,9 @@ async function bootstrap(): Promise<void> {
   const three = new ThreeScene(canvasWrap);
   const devStats = new DevStats(perfBadge);
   const punctuationMap = await loadPunctuationMap();
-  let lexiconLoader: LazyLexiconLoader | null = new LazyLexiconLoader();
+  let lexiconLoader: LazyLexiconLoader | null = new LazyLexiconLoader({
+    baseUrl: import.meta.env.BASE_URL
+  });
   let lexicon: LexiconMap;
   try {
     lexicon = await lexiconLoader.loadStarter();

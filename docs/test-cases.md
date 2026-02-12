@@ -52,6 +52,7 @@
 | IME-SESSION-49 | 太阳光垂直响应强度 | 调用太阳光位置映射函数并计算方向夹角 | 鼠标从顶部到底部时，光线方向夹角达到可见阈值（>=15°），避免“仅水平生效” |
 | IME-SESSION-50 | 压缩词库启动包加载 | 加载 `LazyLexiconLoader` 启动包 | `starter` 成功加载，且 `manifest.shards` 分片数量符合预期 |
 | IME-SESSION-51 | 压缩词库首码懒加载 | 输入首码触发分片加载并合并到 IME | 首次触发返回分片并扩容词库；同首码二次触发不重复加载 |
+| IME-SESSION-52 | 压缩词库基路径解析 | 调用 `resolveLexiconBaseUrl` 传入 `/`、`/game/`、`/game` | 分别返回 `/lexicon`、`/game/lexicon`、`/game/lexicon` |
 
 ## 手工回归（UI/交互）
 

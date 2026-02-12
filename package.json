@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build:lexicon": "node scripts/build-lexicon.mjs",
-    "dev": "vite",
+    "dev": "pnpm run build:lexicon && vite",
     "build": "pnpm run build:lexicon && tsc --noEmit && vite build",
     "preview": "vite preview",
     "test:build": "rm -rf .tmp-test && tsc -p tsconfig.testbuild.json && printf '{\"type\":\"commonjs\"}' > .tmp-test/package.json",

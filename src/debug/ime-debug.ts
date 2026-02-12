@@ -19,7 +19,9 @@ async function mount(): Promise<void> {
   root.append(panel);
 
   const punctuationMap = await loadPunctuationMap();
-  let loader: LazyLexiconLoader | null = new LazyLexiconLoader();
+  let loader: LazyLexiconLoader | null = new LazyLexiconLoader({
+    baseUrl: import.meta.env.BASE_URL
+  });
   let lexicon: LexiconMap;
   try {
     lexicon = await loader.loadStarter();

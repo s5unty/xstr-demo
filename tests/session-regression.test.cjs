@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const ROOT = process.cwd();
 const { loadLexicon, loadPunctuationMap } = require('../.tmp-test/src/ime/lexicon.js');
-const { LazyLexiconLoader } = require('../.tmp-test/src/ime/lexicon-loader.js');
+const { LazyLexiconLoader, resolveLexiconBaseUrl } = require('../.tmp-test/src/ime/lexicon-loader.js');
 const { QuickCodeIme } = require('../.tmp-test/src/ime/quickcode-ime.js');
 const {
   KEY_LAYOUT,
@@ -452,4 +452,10 @@ test('IME-SESSION-51 压缩词库应支持按首码懒加载并与 IME 合并', 
 
   const again = await loader.ensureForRaw('x');
   assert.equal(again, null);
+});
+
+test('IME-SESSION-52 压缩词库路径应兼容子路径部署', () => {
+  assert.equal(resolveLexiconBaseUrl('/'), '/lexicon');
+  assert.equal(resolveLexiconBaseUrl('/game/'), '/game/lexicon');
+  assert.equal(resolveLexiconBaseUrl('/game'), '/game/lexicon');
 });
